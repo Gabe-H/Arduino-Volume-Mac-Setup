@@ -15,7 +15,7 @@
 //   Good Performance: only the first pin has interrupt capability
 //   Low Performance:  neither pin has interrupt capability
 #define BUTTON_PIN 7
-Encoder myEnc(5, 6);
+Encoder myEnc(6, 5);
 //   avoid using pins with LEDs attached
 uint8_t up = 0;
 uint8_t down = 0;
@@ -48,7 +48,6 @@ void handleButton() {
       fineAdj = !fineAdj;
       EEPROM.write(0, 1);
       macSetup();
-      delay(100);
 
       holdTimer = millis();
     }
