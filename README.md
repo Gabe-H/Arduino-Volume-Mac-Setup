@@ -13,10 +13,19 @@ DT -> 6
 CLK -> 5
 ```
 
-## Typical Usage
-Rotate clockwise/counter-clockwise for volume increase/decrease, and (for macOS) press the encoder to switch to fine-tune volume
-
-### Mac Setup Mode
-Pressing and holding the encoder button will put the arduino in a 'setup mode', ready for the macOS keyboard setup screen. 
-When it prompts to press the key right of LSHIFT, press the button, and for the button to the left of RSHIFT press the button again. <br>
-Usage will continue as normal after.
+## Usage
+When you first power the arduino, it will be in a setup mode, where you can select what the button will do. <br>
+Windows users will never need to change, but Mac users have the option.
+<br>
+<ul>
+  <li> Windows: Turn the volume knob clockwise, and press the button.
+    <br>From here on the button will toggle mute.
+  </li>
+  <li> macOS: Turn the volume knob counter-clockwise, and press the button. From here, it will ALWAYS be ready for keyboard setup, that macOS sometimes requires. When/if it prompts for the key to the right of the LSHIFT, press the button, and same for the next.
+  <br>
+  From here on the button will toggle fine-tune volume adjustment.
+  </li>
+</ul>
+Your selection will be saved to EEPROM for future use.
+<br>
+<b>YOU CAN ALWAYS GO BACK TO THIS BY HOLDING THE BUTTON FOR 5 SECONDS DURING NORMAL OPERATION</b>

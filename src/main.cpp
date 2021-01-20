@@ -15,82 +15,119 @@
 //   Good Performance: only the first pin has interrupt capability
 //   Low Performance:  neither pin has interrupt capability
 #define BUTTON_PIN 7
+#define WINDOWS 0
+#define MACOS 1
+
+
 Encoder myEnc(6, 5);
 //   avoid using pins with LEDs attached
-uint8_t up = 0;
-uint8_t down = 0;
+int myOS;
+
 
 int oldState = HIGH;
-long oldPosition  = -999;
+long oldPosition;
 bool fineAdj = false;
 long holdTimer;
 
 
-void macSetup() {
-  while (digitalRead(BUTTON_PIN) == HIGH);
-    Keyboard.press(KEY_Z);
+void osSetup() {
   while (digitalRead(BUTTON_PIN) == LOW);
-    Keyboard.releaseAll();
-  while (digitalRead(BUTTON_PIN) == HIGH);
-    Keyboard.press(KEY_SLASH);
-  while (digitalRead(BUTTON_PIN) == LOW);
-    Keyboard.releaseAll();
-  EEPROM.write(0, 0);
+  oldPosition = myEnc.read();
+  int newPosition = oldPosition;
+  delay(10);
+  while (digitalRead(BUTTON_PIN) == HIGH) {
+    newPosition = myEnc.read();
+  }
+  Serial.print(newPosition);
+  Serial.print(" : ");
+  Serial.println(oldPosition);
+
+  if (newPosition > oldPosition) myOS = WINDOWS;
+  else {
+    myOS = MACOS;
+    while (digitalRead(BUTTON_PIN) == LOW);
+    while (digitalRead(BUTTON_PIN) == HIGH);
+      Keyboard.press(KEY_Z);
+    while (digitalRead(BUTTON_PIN) == LOW);
+      Keyboard.releaseAll();
+    while (digitalRead(BUTTON_PIN) == HIGH);
+      Keyboard.press(KEY_SLASH);
+    while (digitalRead(BUTTON_PIN) == LOW);
+      Keyboard.releaseAll();
+  }
+
+  EEPROM.write(0, myOS);
+  oldPosition = newPosition;
 }
 
 void handleButton() {
   int newState = digitalRead(BUTTON_PIN);
   // Button logic
   if (newState == LOW) {
-    if (millis() - holdTimer > 5000) {
+    if (newState != oldState) {
+    Serial.println("Pressed");
+      if (myOS == MACOS) {
+        Serial.println("CHANGE");
+        fineAdj ? fineAdj = false : fineAdj = true;
+      }
+      else Consumer.write(HID_CONSUMER_MUTE);      
+    }
+    
+    // If button held for '5' seconds
+    if (millis() - holdTimer > 3000) {
       Serial.println("Held!");
 
+      if (myOS == WINDOWS) Consumer.write(HID_CONSUMER_MUTE);
+
       fineAdj = !fineAdj;
-      EEPROM.write(0, 1);
-      macSetup();
+      osSetup();
 
       holdTimer = millis();
     }
-
-    if (newState != oldState) {
-      Serial.println("CHANGE");
-      fineAdj ? fineAdj = false : fineAdj = true;
-    }
-  } else {
-    holdTimer = millis();
-  }
+  } else holdTimer = millis();
   oldState = newState;
 }
 
 void handleEncoder() {
   long newPosition = myEnc.read();
-  // Rotate logic
-  if (newPosition - oldPosition == 4) {
-    if (fineAdj) {
-      Serial.print("FINE ");
-      Keyboard.press(HID_KEYBOARD_LEFT_SHIFT);
-      Keyboard.press(HID_KEYBOARD_LEFT_ALT);
-      Consumer.write(HID_CONSUMER_VOLUME_INCREMENT);
-      Keyboard.releaseAll();
-    } else {
-      Consumer.write(HID_CONSUMER_VOLUME_INCREMENT);
+  // Rotate logic else
+  if (myOS == MACOS) {
+    if (newPosition - oldPosition == 4) {
+      if (fineAdj) {
+        Serial.print("FINE ");
+        Keyboard.press(HID_KEYBOARD_LEFT_SHIFT);
+        Keyboard.press(HID_KEYBOARD_LEFT_ALT);
+        Consumer.write(HID_CONSUMER_VOLUME_INCREMENT);
+        Keyboard.releaseAll();
+      }
+      else Consumer.write(HID_CONSUMER_VOLUME_INCREMENT); 
+
+      Serial.println("UP");
+      oldPosition = newPosition;
+    } else if (oldPosition - newPosition == 4) {
+      if (fineAdj) {
+        Serial.print("FINE ");
+        Keyboard.press(HID_KEYBOARD_LEFT_SHIFT);
+        Keyboard.press(HID_KEYBOARD_LEFT_ALT);
+        Consumer.write(HID_CONSUMER_VOLUME_DECREMENT);
+        Keyboard.releaseAll();
+      }
+      else Consumer.write(HID_CONSUMER_VOLUME_DECREMENT);
+
+      Serial.println("DOWN");
+      oldPosition = newPosition;
     }
-    Serial.println("UP");
-    up = 0;
-    oldPosition = newPosition;
-  } else if (oldPosition - newPosition == 4) {
-    if (fineAdj) {
-      Serial.print("FINE ");
-      Keyboard.press(HID_KEYBOARD_LEFT_SHIFT);
-      Keyboard.press(HID_KEYBOARD_LEFT_ALT);
+  }
+  else {
+    if (newPosition - oldPosition == 4) {
+      Serial.println("VOLUME UP");
+      Consumer.write(HID_CONSUMER_VOLUME_INCREMENT);
+      oldPosition = newPosition;
+    } else if (oldPosition - newPosition == 4) {
+      Serial.println("VOLUME DOWN");
       Consumer.write(HID_CONSUMER_VOLUME_DECREMENT);
-      Keyboard.releaseAll();
-    } else {
-      Consumer.write(HID_CONSUMER_VOLUME_DECREMENT);
+      oldPosition = newPosition;
     }
-    Serial.println("DOWN");
-    down = 0;
-    oldPosition = newPosition;
   }
 }
 
@@ -102,9 +139,8 @@ void setup() {
   pinMode(BUTTON_PIN, INPUT_PULLUP);
   pinMode(LED_BUILTIN, OUTPUT);
 
-  if (EEPROM.read(0) == 1) {
-    macSetup();
-  }
+  myOS = EEPROM.read(0);
+  if (myOS != MACOS && WINDOWS) osSetup();
 
   oldPosition = myEnc.read();
   Serial.println("Basic Encoder Test:");
